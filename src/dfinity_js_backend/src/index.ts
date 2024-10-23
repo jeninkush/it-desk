@@ -164,13 +164,13 @@ const assetMaintenanceRecordStorage = StableBTreeMap(
   AssetMaintenanceRecord
 );
 
-// Helper functions
+// Improved role check functions
 function isAdmin(userId: text): boolean {
   const userOpt = userStorage.get(userId);
   if ("None" in userOpt) {
     return false;
   }
-  return "Admin" in userOpt.Some.role;
+  return userOpt.Some.role === "Admin"; // More robust check
 }
 
 function isITSupport(userId: text): boolean {
@@ -178,15 +178,25 @@ function isITSupport(userId: text): boolean {
   if ("None" in userOpt) {
     return false;
   }
-  return "ITSupport" in userOpt.Some.role;
+  return userOpt.Some.role === "ITSupport"; // More robust check
 }
+
+// Centralized error messages
+const ErrorMessages = {
+  USER_NOT_FOUND: "User not found.",
+  USERNAME_REQUIRED: "Username is required.",
+  USERNAME_EXISTS: "Username already exists, try another one.",
+  TICKET_NOT_FOUND: "Ticket not found.",
+  ASSET_NOT_FOUND: "Asset not found.",
+  // ... other error messages ...
+};
 
 // Canister Definition
 export default Canister({
   // Create a new user
   createUser: update([UserPayload], Result(User, text), (payload) => {
     if (!payload.username) {
-      return Err("Username is required.");
+      return Err(ErrorMessages.USERNAME_REQUIRED);
     }
 
     // Ensure that the username is unique
@@ -194,7 +204,7 @@ export default Canister({
 
     for (const user of existingUsers) {
       if (user.username === payload.username) {
-        return Err("Username already exists, try another one.");
+        return Err(ErrorMessages.USERNAME_EXISTS);
       }
     }
 
@@ -214,7 +224,7 @@ export default Canister({
   getUserById: query([text], Result(User, text), (userId) => {
     const userOpt = userStorage.get(userId);
     if ("None" in userOpt) {
-      return Err("User not found.");
+      return Err(ErrorMessages.USER_NOT_FOUND);
     }
     return Ok(userOpt.Some);
   }),
