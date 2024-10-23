@@ -1,0 +1,19 @@
+service: () -> {
+    addAssetMaintenanceRecord: (record {assetId:text; cost:nat64; date:nat64; description:text; maintenanceType:text}) -> (variant {Ok:record {id:text; assetId:text; cost:nat64; date:nat64; description:text; maintenanceType:text}; Err:text});
+    addCommentToTicket: (record {content:text; userId:text; ticketId:text}) -> (variant {Ok:record {id:text; content:text; userId:text; created_at:text; ticketId:text}; Err:text});
+    assignTicket: (record {userId:text; ticketId:text}) -> (variant {Ok:record {id:text; status:variant {Open:text; Closed:text; InProgress:text}; title:text; userId:text; description:text; created_at:text; created_by:text; assigned_to:opt text; priority:variant {Low; High; Medium}}; Err:text});
+    calculateAssetValue: (text) -> (variant {Ok:nat64; Err:text}) query;
+    createITAsset: (record {asset_name:text; asset_type:text; depreciation_rate:nat64; assigned_to:text; purchase_date:nat64; approx_value:nat64}) -> (variant {Ok:record {id:text; asset_name:text; asset_type:text; depreciation_rate:nat64; assigned_to:text; purchase_date:nat64; approx_value:nat64}; Err:text});
+    createTicket: (record {title:text; userId:text; description:text; priority:variant {Low; High; Medium}}) -> (variant {Ok:record {id:text; status:variant {Open:text; Closed:text; InProgress:text}; title:text; userId:text; description:text; created_at:text; created_by:text; assigned_to:opt text; priority:variant {Low; High; Medium}}; Err:text});
+    createUser: (record {username:text; role:variant {User; Admin; ITSupport}}) -> (variant {Ok:record {id:text; username:text; role:variant {User; Admin; ITSupport}; created_at:text}; Err:text});
+    generateReport: (record {reportType:variant {InProgressTickets; OpenTickets; ClosedTickets; AssetUtilization}}) -> (variant {Ok:text; Err:text}) query;
+    getAllUsers: () -> (variant {Ok:vec record {id:text; username:text; role:variant {User; Admin; ITSupport}; created_at:text}; Err:text}) query;
+    getAssetMaintenanceHistory: (text) -> (variant {Ok:vec record {id:text; assetId:text; cost:nat64; date:nat64; description:text; maintenanceType:text}; Err:text}) query;
+    getCommentsForTicket: (text) -> (variant {Ok:vec record {id:text; content:text; userId:text; created_at:text; ticketId:text}; Err:text}) query;
+    getITAssetById: (text) -> (variant {Ok:record {id:text; asset_name:text; asset_type:text; depreciation_rate:nat64; assigned_to:text; purchase_date:nat64; approx_value:nat64}; Err:text}) query;
+    getITAssets: () -> (variant {Ok:vec record {id:text; asset_name:text; asset_type:text; depreciation_rate:nat64; assigned_to:text; purchase_date:nat64; approx_value:nat64}; Err:text}) query;
+    getTicketById: (text) -> (variant {Ok:record {id:text; status:variant {Open:text; Closed:text; InProgress:text}; title:text; userId:text; description:text; created_at:text; created_by:text; assigned_to:opt text; priority:variant {Low; High; Medium}}; Err:text}) query;
+    getTickets: () -> (variant {Ok:vec record {id:text; status:variant {Open:text; Closed:text; InProgress:text}; title:text; userId:text; description:text; created_at:text; created_by:text; assigned_to:opt text; priority:variant {Low; High; Medium}}; Err:text}) query;
+    getUserById: (text) -> (variant {Ok:record {id:text; username:text; role:variant {User; Admin; ITSupport}; created_at:text}; Err:text}) query;
+    updateTicketStatus: (record {userId:text; ticketId:text; newStatus:variant {Open:text; Closed:text; InProgress:text}}) -> (variant {Ok:record {id:text; status:variant {Open:text; Closed:text; InProgress:text}; title:text; userId:text; description:text; created_at:text; created_by:text; assigned_to:opt text; priority:variant {Low; High; Medium}}; Err:text});
+}
