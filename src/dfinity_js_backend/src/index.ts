@@ -37,9 +37,9 @@ const User = Record({
 
 // Define TicketStatus Enum
 const TicketStatus = Variant({
-  Open: text,
-  InProgress: text,
-  Closed: text,
+  Open: Null,
+  InProgress: Null,
+  Closed: Null,
 });
 
 // Define TicketPriority Enum
@@ -66,7 +66,7 @@ const Ticket = Record({
 const ITAsset = Record({
   id: text,
   asset_name: text,
-  asset_type: text, // Asset type can be defined as a string for simplicity
+  asset_type: text,
   purchase_date: nat64,
   assigned_to: text,
   approx_value: nat64,
@@ -98,7 +98,6 @@ const TicketPayload = Record({
   priority: TicketPriority,
 });
 
-// AssignTicketPayload
 const AssignTicketPayload = Record({
   ticketId: text,
   userId: text,
@@ -181,6 +180,11 @@ function isITSupport(userId: text): boolean {
   return "ITSupport" in userOpt.Some.role;
 }
 
+// Utility function to generate current timestamp
+function getCurrentTimestamp(): string {
+  return new Date().toISOString();
+}
+
 // Canister Definition
 export default Canister({
   // Create a new user
@@ -203,7 +207,7 @@ export default Canister({
       id: userId,
       username: payload.username,
       role: payload.role,
-      created_at: new Date().toISOString(),
+      created_at: getCurrentTimestamp(),
     };
 
     userStorage.insert(userId, user);
@@ -236,12 +240,11 @@ export default Canister({
 
     // Check if the user exists
     const userOpt = userStorage.get(payload.userId);
-
     if ("None" in userOpt) {
       return Err(`User with ID ${payload.userId} not found.`);
     }
 
-    // Check if the  user is an IT support or an Admin
+    // Check if the user is IT support or an Admin
     if (!isITSupport(payload.userId) && !isAdmin(payload.userId)) {
       return Err("Only IT support and Admins can create tickets.");
     }
@@ -255,15 +258,14 @@ export default Canister({
       userId: payload.userId,
       title: payload.title,
       description: payload.description,
-      status: { Open: "Ticket is open" },
+      status: { Open: null }, // Use enum directly
       priority: payload.priority,
-      created_at: new Date().toISOString(),
+      created_at: getCurrentTimestamp(),
       created_by: payload.userId,
       assigned_to: None,
     };
 
     ticketStorage.insert(ticketId, ticket);
-
     return Ok(ticket); // Return the created ticket
   }),
 
@@ -296,7 +298,6 @@ export default Canister({
       };
 
       ticketStorage.insert(payload.ticketId, updatedTicket);
-
       return Ok(updatedTicket);
     }
   ),
@@ -319,6 +320,7 @@ export default Canister({
     return Ok(ticketOpt.Some);
   }),
 
+  // Add a comment to a ticket
   addCommentToTicket: update(
     [CommentPayload],
     Result(Comment, text),
@@ -334,7 +336,7 @@ export default Canister({
         ticketId: payload.ticketId,
         userId: payload.userId,
         content: payload.content,
-        created_at: new Date().toISOString(),
+        created_at: getCurrentTimestamp(),
       };
 
       commentStorage.insert(commentId, comment);
@@ -342,6 +344,7 @@ export default Canister({
     }
   ),
 
+  // Get comments for a specific ticket
   getCommentsForTicket: query(
     [text],
     Result(Vec(Comment), text),
@@ -358,157 +361,3 @@ export default Canister({
     }
   ),
 
-  updateTicketStatus: update(
-    [UpdateTicketStatusPayload],
-    Result(Ticket, text),
-    (payload) => {
-      if (!isAdmin(payload.userId) && !isITSupport(payload.userId)) {
-        return Err("Only admins and IT support can update ticket status.");
-      }
-
-      // Check if the user exists
-      const userOpt = userStorage.get(payload.userId);
-
-      if ("None" in userOpt) {
-        return Err(`User with ID ${payload.userId} not found.`);
-      }
-
-      // Check if the ticket exists
-      const ticketOpt = ticketStorage.get(payload.ticketId);
-
-      if ("None" in ticketOpt) {
-        return Err(`Ticket with ID ${payload.ticketId} not found.`);
-      }
-
-      const updatedTicket = { ...ticketOpt.Some, status: payload.newStatus };
-      ticketStorage.insert(payload.ticketId, updatedTicket);
-      return Ok(updatedTicket);
-    }
-  ),
-
-  // Create an IT asset
-  createITAsset: update([ITAssetPayload], Result(ITAsset, text), (payload) => {
-    if (!payload.asset_name || !payload.asset_type) {
-      return Err("Asset name and type are required.");
-    }
-
-    // Check if the user exists
-    const userOpt = userStorage.get(payload.assigned_to);
-
-    if ("None" in userOpt) {
-      return Err(`User with ID ${payload.assigned_to} not found.`);
-    }
-
-    const assetId = uuidv4();
-    const asset = {
-      id: assetId,
-      ...payload,
-    };
-
-    itAssetStorage.insert(assetId, asset);
-    return Ok(asset);
-  }),
-
-  // Get all IT assets
-  getITAssets: query([], Result(Vec(ITAsset), text), () => {
-    const itAssets = itAssetStorage.values();
-    if (itAssets.length === 0) {
-      return Err("No IT assets found.");
-    }
-    return Ok(itAssets);
-  }),
-
-  // Get a specific IT asset by ID
-  getITAssetById: query([text], Result(ITAsset, text), (assetId) => {
-    const assetOpt = itAssetStorage.get(assetId);
-    if ("None" in assetOpt) {
-      return Err("IT asset not found.");
-    }
-    return Ok(assetOpt.Some);
-  }),
-
-  addAssetMaintenanceRecord: update(
-    [AssetMaintenanceRecordPayload],
-    Result(AssetMaintenanceRecord, text),
-    (payload) => {
-      const assetOpt = itAssetStorage.get(payload.assetId);
-      if ("None" in assetOpt) {
-        return Err("Asset not found.");
-      }
-
-      const maintenanceId = uuidv4();
-      const maintenanceRecord = { id: maintenanceId, ...payload };
-      assetMaintenanceRecordStorage.insert(maintenanceId, maintenanceRecord);
-      return Ok(maintenanceRecord);
-    }
-  ),
-
-  getAssetMaintenanceHistory: query(
-    [text],
-    Result(Vec(AssetMaintenanceRecord), text),
-    (assetId) => {
-      const allRecords = assetMaintenanceRecordStorage.values();
-      const assetRecords = allRecords.filter(
-        (record) => record.assetId === assetId
-      );
-
-      if (assetRecords.length === 0) {
-        return Err("No maintenance records found for this asset.");
-      }
-      return Ok(assetRecords);
-    }
-  ),
-
-  calculateAssetValue: query([text], Result(nat64, text), (assetId) => {
-    const assetOpt = itAssetStorage.get(assetId);
-    if ("None" in assetOpt) {
-      return Err("Asset not found.");
-    }
-
-    const asset = assetOpt.Some;
-    const currentTime = BigInt(Date.now());
-    const yearsSincePurchase =
-      (currentTime - asset.purchase_date) / BigInt(31536000000); // milliseconds in a year
-    const depreciatedValue =
-      (asset.approx_value *
-        (BigInt(100) - asset.depreciation_rate * yearsSincePurchase)) /
-      BigInt(100);
-
-    return Ok(depreciatedValue > 0 ? depreciatedValue : BigInt(0));
-  }),
-
-  // Function to generate reports
-  generateReport: query(
-    [GenerateReportPayload],
-    Result(text, text),
-    (payload) => {
-      switch (payload.reportType) {
-        case { OpenTickets: null }:
-          const openTickets = ticketStorage
-            .values()
-            .filter((ticket) => "Open" in ticket.status);
-          return Ok(JSON.stringify(openTickets));
-        case { ClosedTickets: null }:
-          const closedTickets = ticketStorage
-            .values()
-            .filter((ticket) => "Closed" in ticket.status);
-          return Ok(JSON.stringify(closedTickets));
-        case { InProgressTickets: null }:
-          const inProgressTickets = ticketStorage
-            .values()
-            .filter((ticket) => "InProgress" in ticket.status);
-          return Ok(JSON.stringify(inProgressTickets));
-        case { AssetUtilization: null }:
-          const assets = itAssetStorage.values();
-          const assetUtilization = assets.map((asset) => ({
-            id: asset.id,
-            name: asset.asset_name,
-            assigned_to: asset.assigned_to,
-          }));
-          return Ok(JSON.stringify(assetUtilization));
-        default:
-          return Err("Invalid report type.");
-      }
-    }
-  ),
-});
